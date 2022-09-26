@@ -22,7 +22,7 @@ param(
     [string] $dockerDaemonLinuxInstanceSize = $null, # UNICORN_LAB_LINUX_DOCKER_INSTANCE_SIZE env var
 
     # This group of parameters will likely stay unchanged
-    [string] $scriptGitRepoUrl = "https://github.com/vgribok/AWS-EC2-Windows-Dev-Init.git",
+    [string] $scriptGitRepoUrl = "https://github.com/rahul-chugh/AWS-EC2-Windows-Dev-Init.git",
     [string] $scriptDirectoryName = "AWS-EC2-Windows-Dev-Init",
     [string] $scriptBranchName = $null,
     [string] $scriptSourceDirectory = "./src"

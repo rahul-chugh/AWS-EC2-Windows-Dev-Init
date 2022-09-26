@@ -26,7 +26,7 @@ param(
     [string] $workDirectory = "~/AWS-workshop-assets",
     [bool] $isDebug = $false,
     [string] $systemUserName = $null, # current/context user name will be used
-    [string] $vsLicenseScriptGitHubUrl = "https://github.com/vgribok/VSCELicense.git",
+    [string] $vsLicenseScriptGitHubUrl = "https://github.com/rahul-chugh/VSCELicense.git",
     [string] $vsVersion = "VS2019",
     [string] $tempIamUserPrefix = "temp-aws-lab-user",
     [int] $codeCommitCredCreationDelaySeconds = 10,
