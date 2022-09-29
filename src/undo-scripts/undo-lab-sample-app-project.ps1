@@ -1,7 +1,7 @@
 param(
     [string] $workDirectory = "~/AWS-workshop-assets",
     [string] $sampleAppGitRepoUrl, # UNICORN_LAB_SAMPLE_APP_GIT_REPO_URL
-    [string] $vsLicenseScriptGitHubUrl = "https://github.com/vgribok/VSCELicense.git"
+    [string] $vsLicenseScriptGitHubUrl = "https://github.com/rahul-chugh/VSCELicense.git"
 )
 
 Push-Location
