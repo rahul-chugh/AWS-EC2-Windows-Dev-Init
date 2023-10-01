@@ -16,9 +16,24 @@ param(
     [string] $sampleAppBuildConfiguration, # UNICORN_LAB_SAMPLE_APP_BUILD_CONFIG env var
     [string] $bootstrapCdk, # UNICORN_LAB_BOOTSTRAP_CDK env var
     [string] $codeCommitRepoName, # UNICORN_LAB_SAMPLE_APP_CODECOMMIT_REPO_NAME env var
+    
+    # Linux deamon for containers
     [string] $useDockerDamonLinuxEc2, # UNICORN_LAB_LINUX_DOCKER_START env var
     [string] $dockerDaemonLinuxAmi, # UNICORN_LAB_LINUX_DOCKER_AMI env var
     [string] $dockerDaemonLinuxInstanceSize, # UNICORN_LAB_LINUX_DOCKER_INSTANCE_SIZE env var
+
+    # SQL Server RDS script
+    [string] $IsSQLServerRDSRequiredForWorkshop,
+    [string] $SqlServerInstanceName,
+    [string] $SQLDatabaseEndpoint,
+    [string] $SQLDatabaseArn,
+    [string] $SqlServerScriptsGitUrl,
+    [string] $SqlServerScriptsGitBranch,
+    [string] $SqlServerScriptsDir,
+    [string] $SqlServerScriptsFile,
+    [string] $SqlServerSecretsArn,
+
+    # After login custom script
     [string] $afterLoginScriptGitUrl, # UNICORN_LAB_USER_SCRIPT_GIT_URL env var
     [string] $afterLoginScriptGitBranch, # UNICORN_LAB_USER_SCRIPT_GIT_BRANCH env var
 
@@ -46,9 +61,21 @@ function InitWorkshop {
         [string] $sampleAppBuildConfiguration,
         [string] $bootstrapCdk,
         [string] $codeCommitRepoName,
+
         [string] $useDockerDamonLinuxEc2,
         [string] $dockerDaemonLinuxAmi,
         [string] $dockerDaemonLinuxInstanceSize,
+        
+        [string] $IsSQLServerRDSRequiredForWorkshop,
+        [string] $SqlServerInstanceName,
+        [string] $SQLDatabaseEndpoint,
+        [string] $SQLDatabaseArn,
+        [string] $SqlServerScriptsGitUrl,
+        [string] $SqlServerScriptsGitBranch,
+        [string] $SqlServerScriptsDir,
+        [string] $SqlServerScriptsFile,
+        [string] $SqlServerSecretsArn,
+
         [string] $afterLoginScriptGitUrl, 
         [string] $afterLoginScriptGitBranch, 
             
@@ -89,11 +116,23 @@ function InitWorkshop {
     $sampleAppBuildConfiguration = CoalesceWithEnvVar $sampleAppBuildConfiguration "UNICORN_LAB_SAMPLE_APP_BUILD_CONFIG" "Debug"
     $bootstrapCdk = CoalesceWithEnvVar $bootstrapCdk "UNICORN_LAB_BOOTSTRAP_CDK" # Example: "yes"
     $codeCommitRepoName = CoalesceWithEnvVar $codeCommitRepoName "UNICORN_LAB_SAMPLE_APP_CODECOMMIT_REPO_NAME" "Unicorn-Store-Sample-Git-Repo" # Name of the CodeCommit repo where "git push aws" will push sample code
+    
     $useDockerDamonLinuxEc2 = CoalesceWithEnvVar $useDockerDamonLinuxEc2 "UNICORN_LAB_LINUX_DOCKER_START" $null # Set to "true" to start remote Docker daemon instance
     $dockerDaemonLinuxAmi = CoalesceWithEnvVar $dockerDaemonLinuxAmi "UNICORN_LAB_LINUX_DOCKER_AMI" # Example: "ami-XXXXXXXXXXXX"
     $dockerDaemonLinuxInstanceSize = CoalesceWithEnvVar $dockerDaemonLinuxInstanceSize "UNICORN_LAB_LINUX_DOCKER_INSTANCE_SIZE" "t3a.small"
+    
+    $IsSQLServerRDSRequiredForWorkshop = CoalesceWithEnvVar $IsSQLServerRDSRequiredForWorkshop "IsSQLServerRDSRequiredForWorkshop"
+    $SqlServerInstanceName = CoalesceWithEnvVar $SqlServerInstanceName "SqlServerInstanceName"
+    $SQLDatabaseEndpoint = CoalesceWithEnvVar $SQLDatabaseEndpoint "SQLDatabaseEndpoint"
+    $SQLDatabaseArn = CoalesceWithEnvVar $SQLDatabaseArn "SQLDatabaseArn"
+    $SqlServerScriptsGitUrl = CoalesceWithEnvVar $SqlServerScriptsGitUrl "SqlServerScriptsGitUrl"
+    $SqlServerScriptsGitBranch = CoalesceWithEnvVar $SqlServerScriptsGitBranch "SqlServerScriptsGitBranch" "master"
+    $SqlServerScriptsDir = CoalesceWithEnvVar $SqlServerScriptsDir "SqlServerScriptsDir" "."
+    $SqlServerScriptsFile = CoalesceWithEnvVar $SqlServerScriptsFile "SqlServerScriptsFile"
+
     $afterLoginScriptGitUrl = CoalesceWithEnvVar $afterLoginScriptGitUrl "UNICORN_LAB_USER_SCRIPT_GIT_URL"
     $afterLoginScriptGitBranch = CoalesceWithEnvVar $afterLoginScriptGitBranch "UNICORN_LAB_USER_SCRIPT_GIT_BRANCH" "master"
+
 
     $awsRegion = Coalesce $awsRegion (GetDefaultAwsRegionName)
     Write-Information "Current AWS region is `"$awsRegion`""
@@ -163,9 +202,10 @@ function InitWorkshop {
 
         Write-Information "Starting building `"$solutionPath`""
         if($sampleAppSolutionFileName)
-        {   # Buld a project or a solution
+        {   # Build a project or a solution
             dotnet build $sampleAppSolutionFileName -c $sampleAppBuildConfiguration
-        }else
+        }
+        else
         {   # Build whatever in the directory
             dotnet build -c $sampleAppBuildConfiguration
         }
@@ -182,6 +222,40 @@ function InitWorkshop {
         # Adding "aws" as a Git remote, pointing to the CodeCommit repo in the current AWS account
         AddCodeCommitGitRemote -awsRegion $awsRegion -codeCommitRepoName $codeCommitRepoName
         ConfigureGitSettings -gitUsername $iamUserName -projectRootDirPath $sampleAppPath -helper "!aws codecommit credential-helper $@"
+    }
+    
+    if($SqlServerScriptsGitUrl)
+    {
+        # Get sample app source from GitHub
+        Set-Location $workDirectory
+        $retVal = GitCloneAndCheckout -remoteGitUrl $SqlServerScriptsGitUrl -gitBranchName $SqlServerScriptsGitBranch
+        [string] $SqlServerScriptsGitDir = CleanupRetVal($retVal) 
+        [string] $sampleScriptPath = Join-Path $workDirectory $SqlServerScriptsGitDir
+        [string] $scriptsDir = Join-Path $sampleScriptPath $SqlServerScriptsDir
+            
+        # Build sample app
+        Set-Location $scriptsDir
+        $scriptsDir = $pwd
+        [string] $scriptPath = $SqlServerScriptsFile ? (Join-Path $scriptsDir $SqlServerScriptsFile) : $scriptsDir
+
+        Write-Information "Starting deploying script `"$scriptPath`""
+        if($SqlServerScriptsFile)
+        {   # Deploy SQL Script to RDS
+            Write-Information "SqlServerSecretsArn is `"$SqlServerSecretsArn`""
+            try {
+                aws rds-data execute-statement --resource-arn $SQLDatabaseArn --database $SqlServerInstanceName --secret-arn $SqlServerSecretsArn --sql "source $scriptPath"    
+            }
+            catch {
+                Write-Information "SQL Server script deployment Command failed"
+            }
+        }
+        else
+        {   # Build whatever in the directory
+            Write-Information "Database script file not specified"
+        }
+        Write-Information "Finished deploying script `"$solutionPath`""
+
+        CreateDesktopShortcut "Database Script Path" $scriptPath
     }
 
     [string] $userScriptDir

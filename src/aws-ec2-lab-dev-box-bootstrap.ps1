@@ -36,8 +36,8 @@ Set-Location ([System.IO.Path]::GetDirectoryName($myInvocation.MyCommand.Path))
 if ($bootstrapDebug)
 {
     $labGuideUrl = "./docs/en/index.html"
-    $sampleAppGitHubUrl = "https://github.com/vgribok/modernization-unicorn-store.git"
-    $sampleAppGitBranchName = "cdk-module-completed"
+    $sampleAppGitHubUrl = "https://github.com/rahul-chugh/modernization-unicorn-store.git"
+    $sampleAppGitBranchName = "master"
     $sampleAppSolutionFileDir = "."
     $sampleAppSolutionFileName = "UnicornStore.sln"
     $sampleAppBuildConfiguration = "DebugPostgres"
