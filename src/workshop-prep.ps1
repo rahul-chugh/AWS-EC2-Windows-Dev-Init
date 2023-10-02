@@ -129,6 +129,7 @@ function InitWorkshop {
     $SqlServerScriptsGitBranch = CoalesceWithEnvVar $SqlServerScriptsGitBranch "SqlServerScriptsGitBranch" "master"
     $SqlServerScriptsDir = CoalesceWithEnvVar $SqlServerScriptsDir "SqlServerScriptsDir" "."
     $SqlServerScriptsFile = CoalesceWithEnvVar $SqlServerScriptsFile "SqlServerScriptsFile"
+    $SqlServerSecretsArn = CoalesceWithEnvVar $SqlServerSecretsArn "SqlServerSecretsArn"
 
     $afterLoginScriptGitUrl = CoalesceWithEnvVar $afterLoginScriptGitUrl "UNICORN_LAB_USER_SCRIPT_GIT_URL"
     $afterLoginScriptGitBranch = CoalesceWithEnvVar $afterLoginScriptGitBranch "UNICORN_LAB_USER_SCRIPT_GIT_BRANCH" "master"
@@ -243,19 +244,19 @@ function InitWorkshop {
         Write-Information "Starting deploying script `"$scriptPath`""
         if($SqlServerScriptsFile)
         {   # Deploy SQL Script to RDS
-            Write-Information "SqlServerSecretsArn is `"$SqlServerSecretsArn`""
-            try {
-                aws rds-data execute-statement --resource-arn $SQLDatabaseArn --database $SqlServerInstanceName --secret-arn $SqlServerSecretsArn --sql "source $scriptPath"    
-            }
-            catch {
-                Write-Information "SQL Server script deployment Command failed"
-            }
+            $sqlUsername = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).username
+            $sqlPassword = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).password
+
+            Write-Information "sqlUsername is `"$sqlUsername`""
+            Write-Information "sqlPassword is `"$sqlPassword`""
+
+            sqlcmd -U "$sqlUsername" -P "$sqlPassword" -S "$SQLDatabaseEndpoint" -i "$scriptPath"
         }
         else
         {   # Build whatever in the directory
             Write-Information "Database script file not specified"
         }
-        Write-Information "Finished deploying script `"$solutionPath`""
+        Write-Information "Finished deploying script `"$scriptPath`""
 
         CreateDesktopShortcut "Database Script Path" $scriptPath
     }
