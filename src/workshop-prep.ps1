@@ -249,11 +249,12 @@ function InitWorkshop {
         {   # Deploy SQL Script to RDS
             $sqlUsername = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).username
             $sqlPassword = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).password
+            [string] $SQLDatabaseEndpointTrimmed = $SQLDatabaseEndpoint.Replace(':1433','')
 
             Write-Information "sqlUsername is `"$sqlUsername`""
             Write-Information "sqlPassword is `"$sqlPassword`""
 
-            sqlcmd -U "$sqlUsername" -P "$sqlPassword" -S "$SQLDatabaseEndpoint" -i "$scriptPath"
+            sqlcmd -U "$sqlUsername" -P "$sqlPassword" -S "$SQLDatabaseEndpointTrimmed" -i "$scriptPath"
         }
         else
         {   # Build whatever in the directory
