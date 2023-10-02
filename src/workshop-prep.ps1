@@ -229,11 +229,14 @@ function InitWorkshop {
     {
         # Get sample app source from GitHub
         Set-Location $workDirectory
-        [string] $newWorkDirectory = Join-Path $workDirectory "\db"
-        Set-Location $newWorkDirectory
+        [string] $dbDir = "$workDirectory/db"
+        mkdir $dbDir -ErrorAction SilentlyContinue
+        Write-Information "Created directory `"$dbDir`""
+        Set-Location $dbDir
+
         $retVal = GitCloneAndCheckout -remoteGitUrl $SqlServerScriptsGitUrl -gitBranchName $SqlServerScriptsGitBranch
         [string] $SqlServerScriptsGitDir = CleanupRetVal($retVal) 
-        [string] $sampleScriptPath = Join-Path $newWorkDirectory $SqlServerScriptsGitDir
+        [string] $sampleScriptPath = Join-Path $dbDir $SqlServerScriptsGitDir
         [string] $scriptsDir = Join-Path $sampleScriptPath $SqlServerScriptsDir
             
         # Build sample app
