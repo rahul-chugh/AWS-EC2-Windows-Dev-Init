@@ -25,13 +25,10 @@ param(
     # SQL Server RDS script
     [string] $IsSQLServerRDSRequiredForWorkshop,
     [string] $SqlServerInstanceName,
-    [string] $SQLDatabaseEndpoint,
-    [string] $SQLDatabaseArn,
     [string] $SqlServerScriptsGitUrl,
     [string] $SqlServerScriptsGitBranch,
     [string] $SqlServerScriptsDir,
     [string] $SqlServerScriptsFile,
-    [string] $SqlServerSecretsArn,
 
     # After login custom script
     [string] $afterLoginScriptGitUrl, # UNICORN_LAB_USER_SCRIPT_GIT_URL env var
@@ -68,13 +65,10 @@ function InitWorkshop {
         
         [string] $IsSQLServerRDSRequiredForWorkshop,
         [string] $SqlServerInstanceName,
-        [string] $SQLDatabaseEndpoint,
-        [string] $SQLDatabaseArn,
         [string] $SqlServerScriptsGitUrl,
         [string] $SqlServerScriptsGitBranch,
         [string] $SqlServerScriptsDir,
         [string] $SqlServerScriptsFile,
-        [string] $SqlServerSecretsArn,
 
         [string] $afterLoginScriptGitUrl, 
         [string] $afterLoginScriptGitBranch, 
@@ -123,14 +117,11 @@ function InitWorkshop {
     
     $IsSQLServerRDSRequiredForWorkshop = CoalesceWithEnvVar $IsSQLServerRDSRequiredForWorkshop "IsSQLServerRDSRequiredForWorkshop"
     $SqlServerInstanceName = CoalesceWithEnvVar $SqlServerInstanceName "SqlServerInstanceName"
-    $SQLDatabaseEndpoint = CoalesceWithEnvVar $SQLDatabaseEndpoint "SQLDatabaseEndpoint"
-    $SQLDatabaseArn = CoalesceWithEnvVar $SQLDatabaseArn "SQLDatabaseArn"
     $SqlServerScriptsGitUrl = CoalesceWithEnvVar $SqlServerScriptsGitUrl "SqlServerScriptsGitUrl"
     $SqlServerScriptsGitBranch = CoalesceWithEnvVar $SqlServerScriptsGitBranch "SqlServerScriptsGitBranch" "master"
     $SqlServerScriptsDir = CoalesceWithEnvVar $SqlServerScriptsDir "SqlServerScriptsDir" "."
     $SqlServerScriptsFile = CoalesceWithEnvVar $SqlServerScriptsFile "SqlServerScriptsFile"
-    $SqlServerSecretsArn = CoalesceWithEnvVar $SqlServerSecretsArn "SqlServerSecretsArn"
-
+    
     $afterLoginScriptGitUrl = CoalesceWithEnvVar $afterLoginScriptGitUrl "UNICORN_LAB_USER_SCRIPT_GIT_URL"
     $afterLoginScriptGitBranch = CoalesceWithEnvVar $afterLoginScriptGitBranch "UNICORN_LAB_USER_SCRIPT_GIT_BRANCH" "master"
 
@@ -225,44 +216,56 @@ function InitWorkshop {
         ConfigureGitSettings -gitUsername $iamUserName -projectRootDirPath $sampleAppPath -helper "!aws codecommit credential-helper $@"
     }
     
-    if($SqlServerScriptsGitUrl)
+    if($IsSQLServerRDSRequiredForWorkshop)
     {
-        # Get sample app source from GitHub
-        Set-Location $workDirectory
-        [string] $dbDir = "$workDirectory/db"
-        mkdir $dbDir -ErrorAction SilentlyContinue
-        Write-Information "Created directory `"$dbDir`""
-        Set-Location $dbDir
+        [string] $SqlServerSecretsArn = (Get-SSMParameter -Name "SqlServerSecretsArn").Value
+        $env:SqlServerSecretsArn = $SqlServerSecretsArn
 
-        $retVal = GitCloneAndCheckout -remoteGitUrl $SqlServerScriptsGitUrl -gitBranchName $SqlServerScriptsGitBranch
-        [string] $SqlServerScriptsGitDir = CleanupRetVal($retVal) 
-        [string] $sampleScriptPath = Join-Path $dbDir $SqlServerScriptsGitDir
-        [string] $scriptsDir = Join-Path $sampleScriptPath $SqlServerScriptsDir
-            
-        # Build sample app
-        Set-Location $scriptsDir
-        $scriptsDir = $pwd
-        [string] $scriptPath = $SqlServerScriptsFile ? (Join-Path $scriptsDir $SqlServerScriptsFile) : $scriptsDir
+        [string] $SQLDatabaseEndpoint = (Get-SSMParameter -Name "SQLServerRDSEndpoint").Value
+        $env:SQLDatabaseEndpoint = $SQLDatabaseEndpoint
+        
+        [string] $SQLDatabaseArn = (Get-SSMParameter -Name "SQLDatabaseArn").Value
+        $env:SQLDatabaseArn = $SQLDatabaseArn
+        
+        if($SqlServerScriptsGitUrl)
+        {
+            # Get sample app source from GitHub
+            Set-Location $workDirectory
+            [string] $dbDir = "$workDirectory/db"
+            mkdir $dbDir -ErrorAction SilentlyContinue
+            Write-Information "Created directory `"$dbDir`""
+            Set-Location $dbDir
 
-        Write-Information "Starting deploying script `"$scriptPath`""
-        if($SqlServerScriptsFile)
-        {   # Deploy SQL Script to RDS
-            $sqlUsername = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).username
-            $sqlPassword = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).password
-            [string] $SQLDatabaseEndpointTrimmed = $SQLDatabaseEndpoint.Replace(':1433','')
+            $retVal = GitCloneAndCheckout -remoteGitUrl $SqlServerScriptsGitUrl -gitBranchName $SqlServerScriptsGitBranch
+            [string] $SqlServerScriptsGitDir = CleanupRetVal($retVal) 
+            [string] $sampleScriptPath = Join-Path $dbDir $SqlServerScriptsGitDir
+            [string] $scriptsDir = Join-Path $sampleScriptPath $SqlServerScriptsDir
+                
+            # Build sample app
+            Set-Location $scriptsDir
+            $scriptsDir = $pwd
+            [string] $scriptPath = $SqlServerScriptsFile ? (Join-Path $scriptsDir $SqlServerScriptsFile) : $scriptsDir
 
-            Write-Information "sqlUsername is `"$sqlUsername`""
-            Write-Information "sqlPassword is `"$sqlPassword`""
+            Write-Information "Starting deploying script `"$scriptPath`""
+            if($SqlServerScriptsFile)
+            {   # Deploy SQL Script to RDS
+                $sqlUsername = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).username
+                $sqlPassword = ((Get-SECSecretValue -SecretId "SQLServerRDSSecret").SecretString | ConvertFrom-Json).password
+                [string] $SQLDatabaseEndpointTrimmed = $SQLDatabaseEndpoint.Replace(':1433','')
 
-            sqlcmd -U "$sqlUsername" -P "$sqlPassword" -S "$SQLDatabaseEndpointTrimmed" -i "$scriptPath"
+                Write-Information "sqlUsername is `"$sqlUsername`""
+                Write-Information "sqlPassword is `"$sqlPassword`""
+
+                sqlcmd -U "$sqlUsername" -P "$sqlPassword" -S "$SQLDatabaseEndpointTrimmed" -i "$scriptPath"
+            }
+            else
+            {   # Build whatever in the directory
+                Write-Information "Database script file not specified"
+            }
+            Write-Information "Finished deploying script `"$scriptPath`""
+
+            CreateDesktopShortcut "Database Script Path" $scriptPath
         }
-        else
-        {   # Build whatever in the directory
-            Write-Information "Database script file not specified"
-        }
-        Write-Information "Finished deploying script `"$scriptPath`""
-
-        CreateDesktopShortcut "Database Script Path" $scriptPath
     }
 
     [string] $userScriptDir
