@@ -218,6 +218,7 @@ function InitWorkshop {
     
     if($IsSQLServerRDSRequiredForWorkshop)
     {
+        #updating environment variables
         [string] $SqlServerSecretsArn = (Get-SSMParameter -Name "SqlServerSecretsArn").Value
         $env:SqlServerSecretsArn = $SqlServerSecretsArn
 
