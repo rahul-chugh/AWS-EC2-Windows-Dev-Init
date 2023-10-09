@@ -10,7 +10,7 @@ param(
 
     # This group of parameters are likely to stay unchanged from one lab to another
     [string] $workDirectory = "~/AWS-workshop-assets",
-    [string] $vsLicenseScriptGitHubUrl = "https://github.com/vgribok/VSCELicense.git",
+    [string] $vsLicenseScriptGitHubUrl = "https://github.com/rahul-chugh/VSCELicense.git",
     [string] $tempIamUserPrefix = "temp-aws-lab-user"
 )
 

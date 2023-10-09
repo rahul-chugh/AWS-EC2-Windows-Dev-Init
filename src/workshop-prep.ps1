@@ -103,7 +103,7 @@ function InitWorkshop {
     }
 
     $labGuideUrl = CoalesceWithEnvVar $labGuideUrl "UNICORN_LAB_GUIDE_URL" # Examples: "http://cdkworkshop.com", "./docs/en/index.html"
-    $sampleAppGitHubUrl = CoalesceWithEnvVar $sampleAppGitHubUrl "UNICORN_LAB_SAMPLE_APP_GIT_REPO_URL" # Example: "https://github.com/vgribok/modernization-unicorn-store.git"
+    $sampleAppGitHubUrl = CoalesceWithEnvVar $sampleAppGitHubUrl "UNICORN_LAB_SAMPLE_APP_GIT_REPO_URL" # Example: "https://github.com/rahul-chugh/modernization-unicorn-store.git"
     $sampleAppGitBranchName = CoalesceWithEnvVar $sampleAppGitBranchName "UNICORN_LAB_SAMPLE_APP_GIT_BRANCH" "master" # Example: "cdk-module-completed"
     $sampleAppSolutionFileDir = CoalesceWithEnvVar $sampleAppSolutionFileDir "UNICORN_LAB_SAMPLE_APP_SOLUTION_DIR" "." # Relative path from git repo root to where solution is located
     $sampleAppSolutionFileName = CoalesceWithEnvVar $sampleAppSolutionFileName "UNICORN_LAB_SAMPLE_APP_SOLUTION_FILE" # Example: "UnicornStore.sln". Leave blank to build a directory instead of a file
